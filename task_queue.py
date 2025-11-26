@@ -4,7 +4,8 @@ import heapq
 import threading
 import uuid
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Any, Dict
+from pydantic import BaseModel
 
 
 class TaskStatus(Enum):
@@ -13,25 +14,25 @@ class TaskStatus(Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     
-@dataclass
-class Task:
+@dataclass    
+class Task(BaseModel):
     id: str
     name: str
     priority: int # 1 = highest, 5 = lowest
-    payload: dict
+    payload: Dict[str, Any]
     status: TaskStatus
     created_at: datetime
     updated_at: datetime
-    def __lt__(self, other):
-    # For heapq comparison - lower priority number = higher priority
+    def __lt__(self, other: "Task") -> bool:
+        # For heapq comparison - lower priority number = higher priority
         return self.priority < other.priority
 
 class TaskQueue:
     def __init__(self):
-        self._queue = []
-        self._tasks = {} # id -> Task mapping for O(1) lookups
+        self._queue: List[Task] = []
+        self._tasks: Dict[str, Task] = {} # id -> Task mapping for O(1) lookups
         self._lock = threading.Lock()
-    def enqueue(self, name: str, priority: int, payload: dict) -> str:
+    def enqueue(self, name: str, priority: int, payload: Dict[str, Any]) -> str:
         """Add a task to the queue. Returns task ID."""
         task = Task(
             id=str(uuid.uuid4()),
