@@ -4,6 +4,7 @@ import logging
 from typing import Callable
 from task_queue import TaskQueue, Task, TaskStatus
 from file_storage import FileStorage
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO,format='%(asctime)s - %(threadName)s - %(levelname)s -%(message)s')
@@ -16,6 +17,7 @@ class TaskWorker:
         self.task_processor = task_processor
         self.running = False
         self.worker_thread = None
+        self.DEQUEUE_TIMEOUT = 1.0  # seconds
 
     def start(self):
         """Start the worker thread."""
@@ -41,19 +43,20 @@ class TaskWorker:
         while self.running:
             try:
                 # Get task from queue
-                task = self.queue.dequeue()
+                task = self.queue.dequeue(self.DEQUEUE_TIMEOUT)
                 if task is None:
-                    time.sleep(0.1)  # Sleep briefly if no task is available
-                    continue
-                # Update task status to PROCESSING - should be done here or in dequeue?
-                task.status = TaskStatus.PROCESSING
+                    continue  # Timeout expired, loop again
                 # Process the task using task_processor
+                logger.info(f"Processing task: {task.name} (ID: {task.id})")
                 success = self.task_processor(task)
                 # Update task status based on result (COMPLETED/FAILED)
+                final_status = TaskStatus.COMPLETED if success else TaskStatus.FAILED
+                task.status = final_status
                 if success:
-                    task.status = TaskStatus.COMPLETED
+                    logger.info(f"Task {task.id} completed successfully")
                 else:
-                    task.status = TaskStatus.FAILED
+                    logger.error(f"Task {task.id} failed during processing")
+                task.updated_at = datetime.now()
                 # Save task to storage
                 self.storage.save_task(task)
                 pass
