@@ -1,5 +1,6 @@
 import json
 import os
+import tempfile
 from pathlib import Path
 from typing import Optional, List
 from task_queue import Task
@@ -7,6 +8,7 @@ from threading import Lock
 import logging
 from datetime import datetime
 from pydantic import ValidationError
+from typing import Optional, List, Any
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -38,13 +40,20 @@ class FileStorage:
         # Handle file creation and error cases
         # json_data:Dict[str,Any] = self.task_to_dict(task)
         task_path = self._get_task_file_path(task.id)
+        task_data = task.model_dump(mode='json')
         with self._lock:
             task_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(task_path, 'w') as f:
-                json_data = task.model_dump_json()
-                f.write(json_data)
-                return True
-        return False
+            fd, temp_path = tempfile.mkstemp(dir=task_path.parent)
+            try:
+                with os.fdopen(fd, 'w') as tmp:
+                    json.dump(task_data, tmp, indent=2)
+                # Atomic replacement
+                os.replace(temp_path, task_path)
+            except Exception as e:
+                os.unlink(temp_path) # Clean up temp file on error
+                logger.error(f"Failed to save task {task.id}: {e}")
+                return False
+        return True
 
     def load_task(self, task_id: str) -> Optional[Task]:
         """Load a task from file storage."""
@@ -78,35 +87,35 @@ class FileStorage:
 
     def list_all_tasks(self) -> List[str]:
         """List all task IDs in storage."""
-        # TODO: Recursively find all .json files and extract task IDs
         task_ids: List[str] = []
-        with self._lock:
-            for _, _, files in os.walk(self.tasks_dir):
-                for file in files:
-                    if file.endswith('.json'):
-                        task_id = file[:-5]  # Remove .json extension
-                        task_ids.append(task_id)
+
+        for _, _, files in os.walk(self.tasks_dir):
+            for file in files:
+                if file.endswith('.json'):
+                    task_id = file[:-5]  # Remove .json extension
+                    task_ids.append(task_id)
         return task_ids
     
     def backup_all_tasks(self) -> str:
         """Create a backup of all tasks. Returns backup
         filename."""
-        # TODO: Create timestamped backup file with all tasks
-        backup_data: List[str] = []
-        with self._lock:
-            tasks = self.list_all_tasks()
-            for task_id in tasks:
-                task = self.load_task(task_id)
-                if task:
-                    backup_data.append(task.model_dump_json())
-            backup_filename = self.backups_dir / f"backup_{int(datetime.now().timestamp())}.json"
-            try:
-                backup_filename.parent.mkdir(parents=True, exist_ok=True)
-                with open(backup_filename, 'w') as f:
-                    json.dump(backup_data, f)
-            except Exception as e:
-                logger.error(f"Failed to create backup: {e}")
-                return ""
+        backup_data: List[Any] = []       
+        tasks = self.list_all_tasks()
+        for task_id in tasks:
+            task = self.load_task(task_id)
+            if task:
+                backup_data.append(task.model_dump(mode = 'json'))
+        backup_filename = self.backups_dir / f"backup_{int(datetime.now().timestamp())}.json"
+        try:
+            backup_filename.parent.mkdir(parents=True, exist_ok=True)
+            fd, temp_path = tempfile.mkstemp(dir=backup_filename.parent)
+            with os.fdopen(fd, 'w') as tmp:
+                json.dump(backup_data, tmp, indent=2)
+            # Atomic replacement
+            os.replace(temp_path, backup_filename)
+        except Exception as e:
+            logger.error(f"Failed to create backup: {e}")
+            return ""
         return str(backup_filename)
 
     def restore_from_backup(self, backup_filename: str) -> int:
