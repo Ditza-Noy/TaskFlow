@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from enum import Enum
 import heapq
 import threading
@@ -14,7 +13,6 @@ class TaskStatus(Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     
-@dataclass    
 class Task(BaseModel):
     id: str
     name: str
