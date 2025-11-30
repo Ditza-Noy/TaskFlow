@@ -2,7 +2,7 @@ import threading
 import time
 import logging
 from typing import Callable
-from task_queue import TaskQueue, Task
+from task_queue import TaskQueue, Task, TaskStatus
 from file_storage import FileStorage
 
 # Configure logging
@@ -19,36 +19,51 @@ class TaskWorker:
 
     def start(self):
         """Start the worker thread."""
-        # TODO: Start worker thread if not already running
-        pass
+        #Start worker thread if not already running
+        if not self.running:
+            self.running = True
+            self.worker_thread = threading.Thread(target=self._worker_loop, name="TaskWorkerThread")
+            self.worker_thread.start()
 
     def stop(self):
         """Stop the worker thread gracefully."""
-        # TODO: Signal stop and wait for thread to finish
-        pass
+        # Signal stop and wait for thread to finish
+        self.running = False
+        # wait for thread to finish
+        if self.worker_thread:
+            self.worker_thread.join()
+            logger.info("Worker thread has been stopped")
+            self.worker_thread = None
 
     def _worker_loop(self):
         """Main worker loop - runs in separate thread."""
         logger.info("Worker thread started")
         while self.running:
-        try:
-        # TODO: Get task from queue
-        # TODO: Update task status to PROCESSING
-        # TODO: Process the task using task_processor
-        # TODO: Update task status based on result (COMPLETED/FAILED)
-
-        # TODO: Save task to storage
-        # TODO: Handle case when queue is empty (brief sleep)
-
-        pass
-        except Exception as e:
-        # TODO: Handle and log errors appropriately
-        pass
+            try:
+                # Get task from queue
+                task = self.queue.dequeue()
+                if task is None:
+                    time.sleep(0.1)  # Sleep briefly if no task is available
+                    continue
+                # Update task status to PROCESSING - should be done here or in dequeue?
+                task.status = TaskStatus.PROCESSING
+                # Process the task using task_processor
+                success = self.task_processor(task)
+                # Update task status based on result (COMPLETED/FAILED)
+                if success:
+                    task.status = TaskStatus.COMPLETED
+                else:
+                    task.status = TaskStatus.FAILED
+                # Save task to storage
+                self.storage.save_task(task)
+                pass
+            except Exception as e:
+                logger.error(f"Error processing task: {e}")
 
         logger.info("Worker thread stopped")
 
         # Example task processor function
-    def simple_task_processor(task: Task) -> bool:
+def simple_task_processor(task: Task) -> bool:
         """
         Simple task processor that simulates work.
         Returns True for success, False for failure.
@@ -62,8 +77,8 @@ class TaskWorker:
         # Simulate occasional failures (10% failure rate)
         import random
         if random.random() < 0.1:
-        logger.error(f"Task {task.id} failed during processing")
-        return False
+            logger.error(f"Task {task.id} failed during processing")
+            return False
 
         logger.info(f"Task {task.id} completed successfully")
         return True
