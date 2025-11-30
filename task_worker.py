@@ -47,7 +47,7 @@ class TaskWorker:
                 if task is None:
                     continue  # Timeout expired, loop again
                 # Process the task using task_processor
-                logger.info(f"Processing task: {task.name} (ID: {task.id})")
+                # logger.info(f"Processing task: {task.name} (ID: {task.id})")
                 success = self.task_processor(task)
                 # Update task status based on result (COMPLETED/FAILED)
                 final_status = TaskStatus.COMPLETED if success else TaskStatus.FAILED

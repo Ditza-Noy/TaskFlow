@@ -134,9 +134,8 @@ class FileStorage:
                 return 0
         # restore tasks
         restored_count = 0
-        for task_json in backup_data:
+        for task_data in backup_data:
             try:
-                task_data = json.loads(task_json)
                 task: Task = Task.model_validate(task_data)
                 if self.save_task(task):
                     restored_count += 1

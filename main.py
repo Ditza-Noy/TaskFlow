@@ -22,7 +22,7 @@ def generate_sample_tasks(queue: TaskQueue, count: int = 20):
             "timestamp": time.time()
         }
         task_id = queue.enqueue(name, priority, payload)
-        print(f"Created task: {task_id} - {name} (Priority: {priority})")
+        # print(f"Created task: {task_id} - {name} (Priority: {priority})")
         
 def main():
     """Main demonstration function."""
@@ -69,6 +69,10 @@ def main():
     # Create backup
     backup_file = storage.backup_all_tasks()
     print(f"Backup created: {backup_file}")
+    
+    # Restore from backup (for demonstration, we will just show the count)
+    restored_count = storage.restore_from_backup(backup_file)
+    print(f"Tasks restored from backup: {restored_count}")
 
     print("\n=== Demo Complete ===")
     
