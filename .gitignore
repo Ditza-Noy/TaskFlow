@@ -1,3 +1,4 @@
 # Ignore Python virtual environment
 .venv/
 __pycache__/
+taskflow_data/
