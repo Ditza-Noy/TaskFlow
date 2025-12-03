@@ -121,6 +121,25 @@ class TaskQueue:
         """Get all tasks with a specific status."""
         with self._lock:
             return [task for task in self._tasks.values() if task.status == status]
+        
+    def get_all_tasks(self) -> List[Task]:
+        """Get all tasks in the queue."""
+        with self._lock:
+            return list(self._tasks.values())
+        
+    def delete_task(self, task_id: str) -> bool:
+        """Delete a task by ID. Returns True if successful."""
+        with self._lock:
+            task = self._tasks.pop(task_id, None)
+            if not task:
+                return False
+            
+            # If the task is still pending, remove it from the priority queue
+            if task.status == TaskStatus.PENDING:
+                # Rebuild the heap without the removed task
+                self._queue = [t for t in self._queue if t.id != task_id]
+                heapq.heapify(self._queue)
+            return True
 
     def size(self) -> int:
         """Return the number of pending tasks."""
