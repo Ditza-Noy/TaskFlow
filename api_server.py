@@ -1,10 +1,9 @@
 # api_server.py
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
-import uuid
 import uvicorn
 import logging
 from task_queue import TaskQueue, TaskStatus, Task
@@ -44,15 +43,6 @@ queue = TaskQueue()
 storage = FileStorage()
 worker = TaskWorker(queue, storage, simple_task_processor)
 
-# FastAPI app
-app = FastAPI(
-    title="TaskFlow API",
-    description="A distributed task processing system",
-    version="2.0.0"
-    lifespan=lifespan
-)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting TaskFlow API...")
@@ -62,7 +52,14 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down TaskFlow API...")
     worker.stop()
     logger.info("TaskFlow API shutdown complete")
-    
+
+# FastAPI app
+app = FastAPI(
+    title="TaskFlow API",
+    description="A distributed task processing system",
+    version="2.0.0",
+    lifespan=lifespan
+)
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
