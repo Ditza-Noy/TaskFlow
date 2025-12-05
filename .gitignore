@@ -2,3 +2,4 @@
 .venv/
 __pycache__/
 taskflow_data/
+.env
