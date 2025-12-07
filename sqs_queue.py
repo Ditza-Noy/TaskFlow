@@ -1,17 +1,14 @@
 # sqs_queue.py
 import json
 import uuid
-import boto3
 import botocore.exceptions
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Dict, Any
 import logging
-from dataclasses import asdict
 from task_queue import Task, TaskStatus, TaskQueue as BaseTaskQueue
 from aws_config import AWSConfig
 from base_task_queue import BaseTaskQueue
 from mypy_boto3_sqs import SQSClient
-from mypy_boto3_sqs.type_defs import MessageTypeDef
 from aws_config import AWSConfig
 import threading
 
@@ -65,25 +62,32 @@ class SQSTaskQueue(BaseTaskQueue):
             raise
         return task_id           
     
-    def dequeue(self) -> Optional[Task]:
+    def dequeue(self, timeout: int = 10) -> Task | None:
         """Receive and return highest priority task from SQS."""
         try:
             response = self.sqs.receive_message(
                 QueueUrl=self.queue_url,
                 MaxNumberOfMessages=1,
                 MessageAttributeNames=['All'],
-                WaitTimeSeconds=10  # Long polling
+                WaitTimeSeconds=timeout  # Long polling
             )
             messages = response.get('Messages', [])
             if not messages:
                 return None  # No messages available
             message = messages[0]
-            task = self._sqs_message_to_task(message)
+            if not message:
+                return None
+            if 'Body' not in message:
+                return None
+            messageBody = message['Body']
+            if not messageBody:
+                return None
+            task = self._sqs_message_to_task(messageBody)
             # update task status to PROCESSING
             task.status = TaskStatus.PROCESSING
             task.updated_at = datetime.now()
             # Store receipt handle for later acknowledgment
-            # task.receipt_handle = message['ReceiptHandle']
+            task.receipt_handle = message.get('ReceiptHandle', '')
             with self._lock:
                 self._tasks[task.id] = task
             logger.info(f"Dequeued task {task.id} from SQS.")
@@ -138,9 +142,9 @@ class SQSTaskQueue(BaseTaskQueue):
         'created_at': task.created_at.isoformat(),
         'updated_at': task.updated_at.isoformat()
         }
-    def _sqs_message_to_task(self, message: MessageTypeDef) -> Task:
+    def _sqs_message_to_task(self, message: str) -> Task:
         """Convert SQS message back to Task object."""
-        body = json.loads(message['Body'])
+        body = json.loads(message)
         return Task(
             id=body['id'],
             name=body['name'],
