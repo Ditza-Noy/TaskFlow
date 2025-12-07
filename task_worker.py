@@ -3,6 +3,7 @@ import time
 import logging
 from typing import Callable
 from task_queue import TaskQueue, Task, TaskStatus
+from sqs_queue import SQSTaskQueue
 from file_storage import FileStorage
 from datetime import datetime
 
@@ -11,13 +12,13 @@ logging.basicConfig(level=logging.INFO,format='%(asctime)s - %(threadName)s - %(
 logger = logging.getLogger(__name__)
 class TaskWorker:
     
-    def __init__(self, queue: TaskQueue, storage: FileStorage,task_processor: Callable[[Task], bool]):
+    def __init__(self, queue: TaskQueue | SQSTaskQueue, storage: FileStorage,task_processor: Callable[[Task], bool]):
         self.queue = queue
         self.storage = storage
         self.task_processor = task_processor
         self.running = False
         self.worker_thread = None
-        self.DEQUEUE_TIMEOUT = 1.0  # seconds
+        self.DEQUEUE_TIMEOUT = 1  # seconds
 
     def start(self):
         """Start the worker thread."""
