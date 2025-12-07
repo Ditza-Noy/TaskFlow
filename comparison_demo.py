@@ -4,7 +4,6 @@ import asyncio
 import os
 from typing import Any
 from queue_factory import get_task_queue
-from file_storage import FileStorage
 
 class QueuePerformanceTest:
     """Performance testing for different queue implementations."""
@@ -39,7 +38,8 @@ class QueuePerformanceTest:
             task = queue.dequeue()
             if task:
                 processed_count += 1
-        processing_time = time.time() - start_time
+        current_time = time.time()
+        processing_time = current_time - start_time
         # Store results
         self.results[queue_type] = {
             'creation_time': creation_time,
