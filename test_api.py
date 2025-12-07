@@ -1,5 +1,5 @@
 # test_api.py
-from typing import  dict, Any
+from typing import Any
 import requests
 from task_queue import TaskStatus
 # import json
