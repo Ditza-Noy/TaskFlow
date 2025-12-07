@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import Any
 from datetime import datetime, timezone
 import uvicorn
 import logging
@@ -20,13 +20,13 @@ logger = logging.getLogger(__name__)
 class CreateTaskRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     priority: int = Field(..., ge=1, le=5)
-    payload: Dict[str, Any] = Field(default_factory=dict)
+    payload: dict[str, Any] = Field(default_factory=dict)
     
 class TaskResponse(BaseModel):
     id: str
     name: str
     priority: int
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
     status: str
     created_at: datetime
     updated_at: datetime
@@ -111,10 +111,10 @@ async def update_task_status(task_id: str, status_update: TaskStatusUpdate):
         raise HTTPException(status_code=404, detail="Task not found")
     return {"message": "Task status updated successfully"}
 
-@app.get("/tasks", response_model=List[TaskResponse])
-async def list_tasks(status: Optional[str] = None, limit: int = 100):
+@app.get("/tasks", response_model=list[TaskResponse])
+async def list_tasks(status: str | None = None, limit: int = 100):
     """List tasks, optionally filtered by status."""
-    tasks : List[Task] = []
+    tasks : list[Task] = []
     if status:
         if not validate_task_status(status):
             raise HTTPException(status_code=400, detail="Invalid status")
@@ -129,7 +129,7 @@ async def list_tasks(status: Optional[str] = None, limit: int = 100):
 @app.get("/stats")
 async def get_stats():
     """Get system statistics."""
-    stats : Dict[str,Any] = {
+    stats : dict[str,Any] = {
         "queue_size": queue.size(),
         "worker_running": worker.running,
         "task_counts": {

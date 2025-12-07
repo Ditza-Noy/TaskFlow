@@ -1,7 +1,6 @@
 # aws_config.py
 import boto3
 import os
-from typing import Optional
 from dotenv import load_dotenv
 from mypy_boto3_sqs import SQSClient
 
@@ -9,10 +8,10 @@ load_dotenv()
 
 class AWSConfig:
     def __init__(self,
-                 region_name: Optional[str] = None,
-                 access_key: Optional[str] = None,
-                 secret_key: Optional[str] = None,
-                 queue_name: Optional[str] = None):
+                 region_name: str | None = None,
+                 access_key: str | None = None,
+                 secret_key: str | None = None,
+                 queue_name: str | None = None):
         self.region_name = region_name or os.getenv("AWS_REGION", "us-east-1")
         self.access_key = access_key or os.getenv("AWS_ACCESS_KEY_ID")
         self.secret_key = secret_key or os.getenv("AWS_SECRET_ACCESS_KEY")

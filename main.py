@@ -4,7 +4,7 @@ import random
 from task_queue import TaskQueue,  TaskStatus
 from file_storage import FileStorage
 from task_worker import TaskWorker, simple_task_processor
-from typing import  Any, Dict
+from typing import  Any
 
 def generate_sample_tasks(queue: TaskQueue, count: int = 20):
     """Generate sample tasks for testing."""
@@ -16,13 +16,13 @@ def generate_sample_tasks(queue: TaskQueue, count: int = 20):
     for i in range(count):
         name = random.choice(task_names)
         priority = random.randint(1, 5)
-        payload: Dict[str,Any] = {
+        payload: dict[str,Any] = {
             "user_id": f"user_{i}",
             "data": f"sample_data_{i}",
             "timestamp": time.time()
         }
         task_id = queue.enqueue(name, priority, payload)
-        # print(f"Created task: {task_id} - {name} (Priority: {priority})")
+        print(f"Created task: {task_id} - {name} (Priority: {priority})")
         
 def main():
     """Main demonstration function."""

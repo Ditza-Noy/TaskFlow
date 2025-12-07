@@ -3,7 +3,7 @@ import json
 import uuid
 import botocore.exceptions
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import Any
 import logging
 from task_queue import Task, TaskStatus, TaskQueue as BaseTaskQueue
 from aws_config import AWSConfig
@@ -23,7 +23,7 @@ class SQSTaskQueue(BaseTaskQueue):
         self.sqs : SQSClient = self.aws_config.sqs_client
         self.queue_url = self.aws_config.queue_url
         # Task dictionary for O(1) status lookups and updates
-        self._tasks: Dict[str, Task] = {}
+        self._tasks: dict[str, Task] = {}
         # Lock for protecting shared data (the queue and tasks dict)
         self._lock = threading.Lock()
         logger.info(f"SQS Queue initialized: {self.queue_url}")
@@ -115,12 +115,12 @@ class SQSTaskQueue(BaseTaskQueue):
             self._tasks[task_id] = task
         return True
     
-    def get_tasks_by_status(self, status: TaskStatus) -> List[Task]:
+    def get_tasks_by_status(self, status: TaskStatus) -> list[Task]:
         """Get all tasks with the specified status."""
         with self._lock:
             return [task for task in self._tasks.values() if task.status == status] 
         
-    def get_all_tasks(self) -> List[Task]:
+    def get_all_tasks(self) -> list[Task]:
         """Get all tasks in the queue."""
         with self._lock:
             return list(self._tasks.values())
@@ -173,7 +173,7 @@ class SQSTaskQueue(BaseTaskQueue):
             logger.error(f"Unexpected error while getting queue size: {e}")
             return -1        
     
-    def _task_to_sqs_message(self, task: Task) -> Dict[str, Any]:
+    def _task_to_sqs_message(self, task: Task) -> dict[str, Any]:
         """Convert Task to SQS message format."""
         return {
         'id': task.id,

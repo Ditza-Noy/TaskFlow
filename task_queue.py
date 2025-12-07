@@ -3,7 +3,7 @@ import heapq
 import threading
 import uuid
 from datetime import datetime
-from typing import Optional, List, Any, Dict
+from typing import Any
 from pydantic import BaseModel
 
 
@@ -17,9 +17,9 @@ class Task(BaseModel):
     id: str
     name: str
     priority: int # 1 = highest, 5 = lowest
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
     status: TaskStatus
-    receipt_handle: Optional[str] = None  # For SQS integration
+    receipt_handle: str | None = None  # For SQS integration
     created_at: datetime
     updated_at: datetime
     def __lt__(self, other: "Task") -> bool:
@@ -29,9 +29,9 @@ class Task(BaseModel):
 class TaskQueue:
     def __init__(self):
         # The priority queue (min-heap)
-        self._queue: List[Task] = []
+        self._queue: list[Task] = []
         # Task dictionary for O(1) status lookups and updates
-        self._tasks: Dict[str, Task] = {}
+        self._tasks: dict[str, Task] = {}
         # Lock for protecting shared data (the queue and tasks dict)
         self._lock = threading.Lock()
         # Condition variable for thread synchronization: 
@@ -39,7 +39,7 @@ class TaskQueue:
         # and enqueuing threads to notify waiting threads when a new task arrives.
         self._condition = threading.Condition(self._lock)
 
-    def enqueue(self, name: str, priority: int, payload: Dict[str, Any]) -> str:
+    def enqueue(self, name: str, priority: int, payload: dict[str, Any]) -> str:
         """Add a task to the queue. Returns task ID."""
         task = Task(
             id=str(uuid.uuid4()),
@@ -59,7 +59,7 @@ class TaskQueue:
             self._condition.notify() 
         return task.id
 
-    def dequeue(self, timeout: Optional[float] = None) -> Optional[Task]:
+    def dequeue(self, timeout: float | None = None) -> Task | None:
         """
         Remove and return the highest priority task.
         Blocks until a task is available or the timeout expires.
@@ -87,7 +87,7 @@ class TaskQueue:
             self._tasks[task.id] = task
             return task
 
-    def get_task(self, task_id: str) -> Optional[Task]:
+    def get_task(self, task_id: str) -> Task | None:
         """Retrieve a task by ID."""
         with self._lock:
             return self._tasks.get(task_id)
@@ -118,12 +118,12 @@ class TaskQueue:
                 
             return True
 
-    def get_tasks_by_status(self, status: TaskStatus) -> List[Task]:
+    def get_tasks_by_status(self, status: TaskStatus) -> list[Task]:
         """Get all tasks with a specific status."""
         with self._lock:
             return [task for task in self._tasks.values() if task.status == status]
         
-    def get_all_tasks(self) -> List[Task]:
+    def get_all_tasks(self) -> list[Task]:
         """Get all tasks in the queue."""
         with self._lock:
             return list(self._tasks.values())

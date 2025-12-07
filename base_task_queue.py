@@ -1,15 +1,15 @@
 from abc import ABC, abstractmethod
-from task_queue import Task, TaskStatus
-from typing import Optional
+from task_queue import Task
+from typing import Any
 
 class BaseTaskQueue(ABC):
     def __init__(self):
         pass    
     @abstractmethod
-    def enqueue(self, name: str, priority: int, payload: dict) -> str:
+    def enqueue(self, name: str, priority: int, payload: dict[str,Any]) -> str:
         pass
     @abstractmethod
-    def dequeue(self) -> Optional['Task']:
+    def dequeue(self) ->Task | None:
         pass
     # @abstractmethod
     # def get_task(self, task_id: str) -> 'Task':

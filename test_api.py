@@ -1,5 +1,5 @@
 # test_api.py
-from typing import  Dict, Any
+from typing import  dict, Any
 import requests
 from task_queue import TaskStatus
 # import json
@@ -16,7 +16,7 @@ def test_health_check():
     
     
 def test_create_task():
-    task_data: Dict[str, Any] = {
+    task_data: dict[str, Any] = {
         "name": "Test Task",
         "priority": 5,
         "payload": {"key": "value"}

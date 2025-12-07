@@ -2,13 +2,12 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from typing import Optional, List
 from task_queue import Task
 from threading import Lock
 import logging
 from datetime import datetime
 from pydantic import ValidationError
-from typing import Optional, List, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -55,7 +54,7 @@ class FileStorage:
                 return False
         return True
 
-    def load_task(self, task_id: str) -> Optional[Task]:
+    def load_task(self, task_id: str) -> Task | None:
         """Load a task from file storage."""
         task_path = self._get_task_file_path(task_id)
         
@@ -85,9 +84,9 @@ class FileStorage:
                 logger.error(f"Failed to delete task {task_id}: {e}")
                 return False
 
-    def list_all_tasks(self) -> List[str]:
+    def list_all_tasks(self) -> list[str]:
         """List all task IDs in storage."""
-        task_ids: List[str] = []
+        task_ids: list[str] = []
 
         for _, _, files in os.walk(self.tasks_dir):
             for file in files:
@@ -99,7 +98,7 @@ class FileStorage:
     def backup_all_tasks(self) -> str:
         """Create a backup of all tasks. Returns backup
         filename."""
-        backup_data: List[Any] = []       
+        backup_data: list[Any] = []       
         tasks = self.list_all_tasks()
         for task_id in tasks:
             task = self.load_task(task_id)
@@ -125,7 +124,7 @@ class FileStorage:
         with self._lock:
             try:
                 with open(backup_filename, 'r') as f:
-                    backup_data: List[str] = json.load(f)
+                    backup_data: list[str] = json.load(f)
             except FileNotFoundError:
                 logger.error(f"Backup file {backup_filename} not found.")
                 return 0
