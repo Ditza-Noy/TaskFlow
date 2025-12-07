@@ -33,7 +33,7 @@ class JSONFormatter(logging.Formatter):
             log_entry['exception'] = self.formatException(record.exc_info)
         return json.dumps(log_entry)
     
-    def setup_logging(self, log_level: str = "INFO", use_json: bool = True):
+def setup_logging(log_level: str = "INFO", use_json: bool = True):
         """Configure application logging."""
         # Clear any existing handlers
         root_logger = logging.getLogger()
