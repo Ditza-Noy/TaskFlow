@@ -6,10 +6,11 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 import uvicorn
 import logging
-from task_queue import TaskQueue, TaskStatus, Task
+from task_queue import TaskStatus, Task
 from file_storage import FileStorage
 from task_worker import TaskWorker, simple_task_processor
 from contextlib import asynccontextmanager
+from queue_factory import get_task_queue
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -39,7 +40,11 @@ class HealthResponse(BaseModel):
     queue_size: int
     worker_running: bool
 # Initialize components (will be replaced with SQS in Task 2)
-queue = TaskQueue()
+# queue = TaskQueue()
+# storage = FileStorage()
+# worker = TaskWorker(queue, storage, simple_task_processor)
+# Use queue factory to get appropriate queue implementation
+queue = get_task_queue() # Will use SQS if USE_SQS=true in environment
 storage = FileStorage()
 worker = TaskWorker(queue, storage, simple_task_processor)
 

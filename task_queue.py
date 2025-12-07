@@ -19,6 +19,7 @@ class Task(BaseModel):
     priority: int # 1 = highest, 5 = lowest
     payload: Dict[str, Any]
     status: TaskStatus
+    receipt_handle: Optional[str] = None  # For SQS integration
     created_at: datetime
     updated_at: datetime
     def __lt__(self, other: "Task") -> bool:

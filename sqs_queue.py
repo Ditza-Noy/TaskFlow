@@ -3,7 +3,7 @@ import json
 import uuid
 import botocore.exceptions
 from datetime import datetime
-from typing import Dict, Any
+from typing import List, Dict, Any
 import logging
 from task_queue import Task, TaskStatus, TaskQueue as BaseTaskQueue
 from aws_config import AWSConfig
@@ -99,7 +99,46 @@ class SQSTaskQueue(BaseTaskQueue):
             return None
         return task
     
-    def acknowledge_task(self, task_id: str, receipt_handle: str):
+    def get_task(self, task_id: str) -> Task | None:
+        """Get task by ID."""
+        with self._lock:
+            return self._tasks.get(task_id)
+    
+    def update_task_status(self, task_id: str, status: TaskStatus) -> bool:
+        """Update task status."""
+        with self._lock:
+            task = self._tasks.get(task_id)
+            if not task:
+                return False
+            task.status = status
+            task.updated_at = datetime.now()
+            self._tasks[task_id] = task
+        return True
+    
+    def get_tasks_by_status(self, status: TaskStatus) -> List[Task]:
+        """Get all tasks with the specified status."""
+        with self._lock:
+            return [task for task in self._tasks.values() if task.status == status] 
+        
+    def get_all_tasks(self) -> List[Task]:
+        """Get all tasks in the queue."""
+        with self._lock:
+            return list(self._tasks.values())
+        
+    def delete_task(self, task_id: str) -> bool:
+        """Delete a task from SQS and local storage."""
+        with self._lock:
+            task = self._tasks.get(task_id)
+            if not task:
+                return False
+            receipt_handle = task.receipt_handle
+        if not receipt_handle:
+            logger.error(f"No receipt handle for task {task_id}, cannot delete from SQS.")
+            return False
+        self.acknowledge_task(task_id, receipt_handle)
+        return True
+    
+    def acknowledge_task(self, task_id: str, receipt_handle: str)-> bool:
         """Acknowledge task completion and remove from SQS."""
         try:
             self.sqs.delete_message(
@@ -112,8 +151,11 @@ class SQSTaskQueue(BaseTaskQueue):
             logger.info(f"Acknowledged and deleted task {task_id} from SQS.")
         except botocore.exceptions.ClientError as error:
             logger.error(f"Failed to acknowledge task {task_id}: {error}")
+            return False
         except Exception as e:
             logger.error(f"Unexpected error while acknowledging task {task_id}: {e}")
+            return False
+        return True
 
     def size(self) -> int:
         """Get approximate number of messages in queue."""
