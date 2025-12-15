@@ -18,7 +18,7 @@ class QueuePerformanceTest:
         else:
             os.environ['USE_SQS'] = 'true'
             
-        queue = get_task_queue()
+        queue = get_task_queue(os.getenv('USE_SQS') == 'true')
 
         # Measure task creation time
         start_time = time.time()
