@@ -13,7 +13,7 @@ class SQSConfig:
                  secret_key: str | None = None,
                  queue_name: str | None = None):
         self.region_name = region_name or os.getenv("AWS_REGION", "eu-west-1")
-        self.access_key = access_key or os.environ.get("AWS_ACCESS_KEY_ID")
+        self.access_key = access_key or os.getenv("AWS_ACCESS_KEY_ID")
         self.secret_key = secret_key or os.getenv("AWS_SECRET_ACCESS_KEY")
         self.queue_name = queue_name or os.getenv("SQS_QUEUE_NAME", 'taskflow-queue')
 
