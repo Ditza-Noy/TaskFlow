@@ -6,10 +6,10 @@ from datetime import datetime
 from typing import Any
 import logging
 from task_queue import Task, TaskStatus, TaskQueue as BaseTaskQueue
-from aws_config import AWSConfig
+from sqs_config import SQSConfig
 from base_task_queue import BaseTaskQueue
 from mypy_boto3_sqs import SQSClient
-from aws_config import AWSConfig
+from sqs_config import SQSConfig
 import threading
 
 
@@ -19,7 +19,7 @@ class SQSTaskQueue(BaseTaskQueue):
     """SQS-backed implementation of TaskQueue interface."""
     def __init__(self):
         super().__init__() # Initialize parent class attributes
-        self.aws_config = AWSConfig()
+        self.aws_config = SQSConfig()
         self.sqs : SQSClient = self.aws_config.sqs_client
         self.queue_url = self.aws_config.queue_url
         # Task dictionary for O(1) status lookups and updates
