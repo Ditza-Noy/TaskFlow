@@ -2,6 +2,7 @@ import json
 import os
 import tempfile
 from pathlib import Path
+from base_file_storage import BaseFileStorage
 from task_queue import Task
 from threading import Lock
 import logging
@@ -12,7 +13,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
-class FileStorage:
+class FileStorage(BaseFileStorage):
     def __init__(self, base_path: str = "taskflow_data"):
         self.base_path = Path(base_path)
         self.tasks_dir = self.base_path / "tasks"
