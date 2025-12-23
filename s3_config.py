@@ -10,7 +10,7 @@ from mypy_boto3_s3.type_defs import BucketLifecycleConfigurationTypeDef
 
 load_dotenv()
 
-class SQSConfig:
+class S3Config:
     def __init__(self,
                  region_name: str | None = None,
                  access_key: str | None = None,
