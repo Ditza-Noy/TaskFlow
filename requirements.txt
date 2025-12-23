@@ -5,4 +5,6 @@ boto3
 python-dotenv
 requests
 pytest
+psycopg2
+types-psycopg2
 boto3-stubs[essential]
