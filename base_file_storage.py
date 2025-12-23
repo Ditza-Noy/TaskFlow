@@ -19,6 +19,6 @@ class BaseFileStorage(ABC):
     @abstractmethod
     def backup_all_tasks(self) -> str:
         pass
-    @abstractmethod
-    def restore_tasks_from_backup(self, backup_filename: str) -> int:
-        pass
+    # @abstractmethod
+    # def restore_tasks_from_backup(self, backup_filename: str) -> int:
+    #     pass
