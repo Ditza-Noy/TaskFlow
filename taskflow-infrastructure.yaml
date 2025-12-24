@@ -1,0 +1,188 @@
+# cloudformation/taskflow-infrastructure.yaml
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'TaskFlow Week 3 Infrastructure - S3, SQS, and RDS'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: 'dev'
+    AllowedValues: ['dev', 'staging', 'prod']
+    Description: 'Environment name'
+  ProjectName:
+    Type: String
+    Default: 'taskflow'
+    Description: 'Project name for resource naming'
+  DatabasePassword:
+    Type: String
+    NoEcho: true
+    MinLength: 8
+    Description: 'Password for RDS database'
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, 'prod']
+
+Resources:
+  # S3 Bucket for task storage
+  TaskStorageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-${Environment}-storage-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: TaskFlowLifecycle
+            Status: Enabled
+            Prefix: 'tasks/'
+            Transitions:
+              - TransitionInDays: 30
+                StorageClass: STANDARD_IA
+              - TransitionInDays: 90
+                StorageClass: GLACIER
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # Dead Letter Queue
+  TaskDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ProjectName}-${Environment}-dlq'
+      MessageRetentionPeriod: 1209600
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # SQS Queue for task processing
+  TaskQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ProjectName}-${Environment}-queue'
+      VisibilityTimeoutSeconds: 300
+      MessageRetentionPeriod: 1209600
+      ReceiveMessageWaitTimeSeconds: 10
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt TaskDeadLetterQueue.Arn
+        maxReceiveCount: 3
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # VPC for RDS
+  TaskFlowVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-vpc'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Private subnets for RDS
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref TaskFlowVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-private-subnet-1'
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref TaskFlowVPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-private-subnet-2'
+
+  # DB Subnet Group
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for TaskFlow RDS
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Security Group for RDS
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for TaskFlow RDS database
+      VpcId: !Ref TaskFlowVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: 10.0.0.0/16
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # RDS PostgreSQL Instance
+  TaskDatabase:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName: taskflow
+      DBInstanceIdentifier: !Sub '${ProjectName}-${Environment}-db'
+      Engine: postgres
+      EngineVersion: '13.7'
+      DBInstanceClass: !If [IsProd, db.t3.small, db.t3.micro]
+      AllocatedStorage: !If [IsProd, 100, 20]
+      StorageType: gp2
+      MasterUsername: taskflow_admin
+      MasterUserPassword: !Ref DatabasePassword
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      BackupRetentionPeriod: !If [IsProd, 7, 1]
+      MultiAZ: !If [IsProd, true, false]
+      StorageEncrypted: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref ProjectName
+
+Outputs:
+  BucketName:
+    Description: 'S3 Bucket Name'
+    Value: !Ref TaskStorageBucket
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-bucket-name'
+  QueueUrl:
+    Description: 'SQS Queue URL'
+    Value: !Ref TaskQueue
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-queue-url'
+  DatabaseEndpoint:
+    Description: 'RDS Database Endpoint'
+    Value: !GetAtt TaskDatabase.Endpoint.Address
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-db-endpoint'
+  DatabasePort:
+    Description: 'RDS Database Port'
+    Value: !GetAtt TaskDatabase.Endpoint.Port
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-db-port'
