@@ -31,7 +31,7 @@ class S3Config:
             raise ValueError("S3_BUCKET_NAME must be provided either as an argument or environment variable.")
         
         self.s3_client : S3Client  = self.get_s3_client()
-        self.bucket_url: str = self.get_s3_url(self.bucket_name)
+        # self.bucket_url: str = self.get_s3_url(self.bucket_name)
         
     def get_s3_client(self) -> S3Client:
         """Get configured S3 client."""        

@@ -187,3 +187,14 @@ class S3Storage(BaseFileStorage):
         except Exception as e:
             logger.error(f"Error getting storage stats: {e}")
             return {}
+
+if __name__ == "__main__":
+    # Simple test/demo of S3Storage
+    storage = S3Storage()
+    print("S3 Storage initialized.")
+    print("Listing all tasks:")
+    tasks = storage.list_all_tasks()
+    print(f"Found {len(tasks)} tasks: {tasks}")
+    print("Storage stats:")
+    stats = storage.get_storage_stats()
+    print(stats)
