@@ -1,4 +1,5 @@
 # api_server.py
+import sys
 import uuid
 import time
 from fastapi import FastAPI, HTTPException, Request, Response
@@ -214,11 +215,29 @@ def validate_task_status(status: str) -> bool:
     except ValueError:
         return False
     
-if __name__ == "__main__":
+def start_server(host: str = "0.0.0.0", port: int = 8000):
+    """
+    Function to start the Uvicorn server programmatically.
+    """
     uvicorn.run(
-    "api_server:app",
-    host="0.0.0.0",
-    port=8000,
-    reload=True,
-    log_level="info"
+        "api_server:app",
+        host=host,
+        port=port,
+        reload=False,
+        log_level="info"
     )
+    
+if __name__ == "__main__":
+    # Default port
+    port = 8000
+    
+    # Check command line args (e.g., python api_server.py 8001)
+    if len(sys.argv) > 1:
+        try:
+            port = int(sys.argv[1])
+        except ValueError:
+            print(f"Invalid port: {sys.argv[1]}")
+            sys.exit(1)
+            
+    # Call the function
+    start_server(port=port)
