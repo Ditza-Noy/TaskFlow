@@ -121,48 +121,83 @@ class LoadBalancer:
         except StopIteration:
             return None
 
-    async def forward_request(self, request: web.Request) -> web.Response | None:
-        # TODO: Forward request to selected instance
+    async def forward_request(self, request: web.Request) -> web.StreamResponse:    
+            """
+            Forward request to a backend instance using streaming to handle large payloads.
+            """
+            instance = self.get_next_instance()
+            if not instance:
+                return web.Response(status=503, text="No healthy instances available")
 
-        instance = self.get_next_instance()
-        if not instance:
-            return web.Response(status=503, text="No healthy instances available")
-        try:
-            url = f"{self.base_url}:{instance.port}{request.rel_url}"
-            # Copy headers (excluding hop-by-hop headers)
-            headers = {k: v for k, v in request.headers.items()
-            if k.lower() not in ['host', 'connection']}
-            start_time = time()
-            if self.session:
+            try:
+                # 1. Construct target URL
+                target_url = f"{self.base_url}:{instance.port}{request.rel_url}"
+
+                # 2. Filter headers (remove hop-by-hop headers that shouldn't be forwarded)
+                headers = {
+                    k: v for k, v in request.headers.items()
+                    if k.lower() not in ['host', 'connection', 'transfer-encoding', 'content-length']
+                }
+
+                # 3. Read request body (for a true reverse proxy, you might stream this too, 
+                # but reading into memory is standard for simple load balancers)
+                body = await request.read() if request.can_read_body else None
+                
+                start_time = time()
+
+                # 4. Make request to backend
+                if not self.session:
+                    raise RuntimeError("ClientSession not initialized")
+
                 async with self.session.request(
                     method=request.method,
-                    url=url,
+                    url=target_url,
                     headers=headers,
-                    data=await request.read() if request.can_read_body else None
-                ) as resp:
-                    # TODO: Handle response
-                    response_data = await resp.read()
+                    data=body
+                ) as backend_resp:
+                    
+                    # 5. Create StreamResponse for the client
+                    # We filter backend headers to avoid conflicts (like content-length mismatch)
+                    client_response = web.StreamResponse(
+                        status=backend_resp.status,
+                        reason=backend_resp.reason
+                    )
+                    
+                    # Copy headers from backend to client response
+                    for h, v in backend_resp.headers.items():
+                        if h.lower() not in ['connection', 'transfer-encoding', 'content-length']:
+                            client_response.headers[h] = v
+                    
+                    # 6. Prepare the connection (sends status code and headers to client)
+                    await client_response.prepare(request)
+
+                    # 7. Stream the body chunks
+                    # 1024 * 64 = 64KB chunks
+                    async for chunk in backend_resp.content.iter_chunked(65536):
+                        await client_response.write(chunk)
+
+                    # 8. Finalize response
+                    await client_response.write_eof()
+
+                    # 9. Update Statistics
                     response_time = (time() - start_time) * 1000
-                    # TODO: Update statistics
                     self.stats['total_requests'] += 1
                     self.stats['successful_requests'] += 1
+                    
                     # Update running average
                     total = self.stats['total_requests']
                     current_avg = self.stats['avg_response_time']
                     self.stats['avg_response_time'] = ((current_avg * (total - 1) + response_time) / total)
-                    # TODO: Return response to client
-                    return web.Response(
-                        status=resp.status,
-                        body=response_data,
-                        headers=headers={k: v for k, v in response.headers.items()
-                            if k.lower() not in ['content-length', 'transfer-encoding']}
-                    )
-        except Exception as e:   
-            logger.error(f"Error forwarding request to {instance.host}:{instance.port}: {e}")
-            self.stats['total_requests'] += 1
-            self.stats['failed_requests'] += 1
-            return web.Response(text="Backend error", status=502)         
-        
+
+                    return client_response
+
+            except Exception as e:
+                logger.error(f"Error forwarding request to {instance.host}:{instance.port}: {e}")
+                self.stats['total_requests'] += 1
+                self.stats['failed_requests'] += 1
+                # Note: If client_response.prepare() was already called, we can't change the status code 
+                # to 502 here. Ideally, we catch errors before preparing the response.
+                return web.Response(text="Backend error", status=502)
 
     def get_stats(self) -> dict[str,Any]:
         """Get load balancer statistics."""
@@ -254,7 +289,7 @@ async def run_multiple_instances():
             await asyncio.sleep(3600)
             
     except asyncio.CancelledError:
-        print("\n🛑 Stopping services...")
+        print("\n Stopping services...")
     finally:
         # Cleanup Load Balancer
         await lb.stop()
