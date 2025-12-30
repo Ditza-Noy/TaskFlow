@@ -110,7 +110,7 @@ async def logging_middleware(request: Request, call_next: CallNext ) -> Response
     return response
 
 @app.get("/health", response_model=HealthResponse)
-async def health_check():
+def health_check():
     """Health check endpoint."""
     return HealthResponse(
         status="healthy",
@@ -120,7 +120,7 @@ async def health_check():
     )
     
 @app.post("/tasks", response_model=TaskResponse, status_code=201)
-async def create_task(task_request: CreateTaskRequest):
+def create_task(task_request: CreateTaskRequest):
     """Create a new task."""
     try:
         task_id = queue.enqueue(
@@ -137,7 +137,7 @@ async def create_task(task_request: CreateTaskRequest):
         raise HTTPException(status_code=500, detail="Internal server error")
     
 @app.get("/tasks/{task_id}", response_model=TaskResponse)
-async def get_task(task_id: str):
+def get_task(task_id: str):
     """Get a specific task by ID."""
     task = queue.get_task(task_id)
     if not task:
@@ -145,7 +145,7 @@ async def get_task(task_id: str):
     return task_to_response(task)
 
 @app.put("/tasks/{task_id}/status")
-async def update_task_status(task_id: str, status_update: TaskStatusUpdate):
+def update_task_status(task_id: str, status_update: TaskStatusUpdate):
     """Update task status."""
     if not validate_task_status(status_update.status):
         raise HTTPException(status_code=400, detail="Invalid status")
@@ -155,7 +155,7 @@ async def update_task_status(task_id: str, status_update: TaskStatusUpdate):
     return {"message": "Task status updated successfully"}
 
 @app.get("/tasks", response_model=list[TaskResponse])
-async def list_tasks(status: str | None = None, limit: int = 100):
+def list_tasks(status: str | None = None, limit: int = 100):
     """List tasks, optionally filtered by status."""
     tasks : list[Task] = []
     if status:
@@ -170,7 +170,7 @@ async def list_tasks(status: str | None = None, limit: int = 100):
     return [task_to_response(task) for task in tasks]
 
 @app.get("/stats")
-async def get_stats():
+def get_stats():
     """Get system statistics."""
     stats : dict[str,Any] = {
         "queue_size": queue.size(),
@@ -185,7 +185,7 @@ async def get_stats():
     }
     return stats
 @app.delete("/tasks/{task_id}")
-async def delete_task(task_id: str):
+def delete_task(task_id: str):
     """Delete a task."""
     task = queue.get_task(task_id)
     if not task:
