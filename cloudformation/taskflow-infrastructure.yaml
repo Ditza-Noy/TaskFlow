@@ -33,7 +33,7 @@ Resources:
         Rules:
           - Id: TaskFlowLifecycle
             Status: Enabled
-            Prefix: 'tasks/'
+            Prefix: 'tasks/'    # Direct property (Legacy syntax)
             Transitions:
               - TransitionInDays: 30
                 StorageClass: STANDARD_IA
@@ -67,7 +67,7 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub '${ProjectName}-${Environment}-queue'
-      VisibilityTimeoutSeconds: 300
+      VisibilityTimeout: 300
       MessageRetentionPeriod: 1209600
       ReceiveMessageWaitTimeSeconds: 10
       RedrivePolicy:
@@ -92,97 +92,21 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
-  # Private subnets for RDS
-  PrivateSubnet1:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref TaskFlowVPC
-      CidrBlock: 10.0.1.0/24
-      AvailabilityZone: !Select [0, !GetAZs '']
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-private-subnet-1'
+#   # FIX 2: Route Table for Private Subnets
+#   PrivateRouteTable:
+#     Type: AWS::EC2::RouteTable
+#     Properties:
+#       VpcId: !Ref TaskFlowVPC
+#       Tags:
+#         - Key: Name
+#           Value: !Sub '${ProjectName}-${Environment}-private-rt'
 
-  PrivateSubnet2:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref TaskFlowVPC
-      CidrBlock: 10.0.2.0/24
-      AvailabilityZone: !Select [1, !GetAZs '']
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-private-subnet-2'
-
-  # DB Subnet Group
-  DBSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupDescription: Subnet group for TaskFlow RDS
-      SubnetIds:
-        - !Ref PrivateSubnet1
-        - !Ref PrivateSubnet2
-      Tags:
-        - Key: Environment
-          Value: !Ref Environment
-
-  # Security Group for RDS
-  DatabaseSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Security group for TaskFlow RDS database
-      VpcId: !Ref TaskFlowVPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 5432
-          ToPort: 5432
-          CidrIp: 10.0.0.0/16
-      Tags:
-        - Key: Environment
-          Value: !Ref Environment
-
-  # RDS PostgreSQL Instance
-  TaskDatabase:
-    Type: AWS::RDS::DBInstance
-    Properties:
-      DBName: taskflow
-      DBInstanceIdentifier: !Sub '${ProjectName}-${Environment}-db'
-      Engine: postgres
-      EngineVersion: '13.7'
-      DBInstanceClass: !If [IsProd, db.t3.small, db.t3.micro]
-      AllocatedStorage: !If [IsProd, 100, 20]
-      StorageType: gp2
-      MasterUsername: taskflow_admin
-      MasterUserPassword: !Ref DatabasePassword
-      VPCSecurityGroups:
-        - !Ref DatabaseSecurityGroup
-      DBSubnetGroupName: !Ref DBSubnetGroup
-      BackupRetentionPeriod: !If [IsProd, 7, 1]
-      MultiAZ: !If [IsProd, true, false]
-      StorageEncrypted: true
-      Tags:
-        - Key: Environment
-          Value: !Ref Environment
-        - Key: Project
-          Value: !Ref ProjectName
-
-Outputs:
-  BucketName:
-    Description: 'S3 Bucket Name'
-    Value: !Ref TaskStorageBucket
-    Export:
-      Name: !Sub '${ProjectName}-${Environment}-bucket-name'
-  QueueUrl:
-    Description: 'SQS Queue URL'
-    Value: !Ref TaskQueue
-    Export:
-      Name: !Sub '${ProjectName}-${Environment}-queue-url'
-  DatabaseEndpoint:
-    Description: 'RDS Database Endpoint'
-    Value: !GetAtt TaskDatabase.Endpoint.Address
-    Export:
-      Name: !Sub '${ProjectName}-${Environment}-db-endpoint'
-  DatabasePort:
-    Description: 'RDS Database Port'
-    Value: !GetAtt TaskDatabase.Endpoint.Port
-    Export:
-      Name: !Sub '${ProjectName}-${Environment}-db-port'
+# # FIX 2: S3 Gateway Endpoint (Allows private subnets to reach S3)
+#   S3Endpoint:
+#     Type: AWS::EC2::VPCEndpoint
+#     Properties:
+#       VpcId: !Ref TaskFlowVPC
+#       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+#       VpcEndpointType: Gateway
+#       RouteTableIds:
+#         - !Ref PrivateRouteTable

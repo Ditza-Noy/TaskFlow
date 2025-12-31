@@ -89,6 +89,7 @@ async def logging_middleware(request: Request, call_next: CallNext ) -> Response
             'request_id': request_id,
             'method': request.method,
             'url': str(request.url),
+            'server_port': request.url.port,
             'client_ip': request.client.host if request.client else None,
             'user_agent': request.headers.get("user-agent"),
             'event': 'request_received'

@@ -6,11 +6,12 @@ import types
 from datetime import datetime, timezone
 from typing import Any
 import uuid
+
 class JSONFormatter(logging.Formatter):
     """Custom formatter for JSON logging."""
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as JSON."""
-        log_entry : dict[str, Any] = {
+        log_entry: dict[str, Any] = {
             'timestamp': datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
             'level': record.levelname,
             'logger': record.name,
@@ -19,18 +20,24 @@ class JSONFormatter(logging.Formatter):
             'function': record.funcName,
             'line': record.lineno
         }
-        # Add extra fields if present
-        if hasattr(record, 'request_id'):
-            log_entry['request_id'] = getattr(record, 'request_id')
-        if hasattr(record, 'task_id'):
-            log_entry['task_id'] = getattr(record, 'task_id')
-        if hasattr(record, 'duration_ms'):
-            log_entry['duration_ms'] = getattr(record, 'duration_ms')
-        if hasattr(record, 'status_code'):
-            log_entry['status_code'] = getattr(record, 'status_code')
+
+        # --- NEW CODE STARTS HERE ---
+        # 1. Define the list of extra fields you want to capture
+        custom_fields = [
+            'request_id', 'task_id', 'duration_ms', 'status_code',
+            'server_port', 'method', 'url', 'client_ip', 'user_agent', 'event'
+        ]
+
+        # 2. Loop through them and add to log_entry if they exist in the record
+        for field in custom_fields:
+            if hasattr(record, field):
+                log_entry[field] = getattr(record, field)
+        # --- NEW CODE ENDS HERE ---
+
         # Add exception info if present
         if record.exc_info:
             log_entry['exception'] = self.formatException(record.exc_info)
+
         return json.dumps(log_entry)
     
 def setup_logging(log_level: str = "INFO", use_json: bool = True):

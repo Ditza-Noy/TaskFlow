@@ -4,11 +4,10 @@ from pydantic import BaseModel
 from enum import Enum
 from typing import Any, Callable, Iterator, Awaitable
 import logging
-from aiohttp import web, ClientSession, ClientTimeout, ClientRequest
+from aiohttp import web, ClientSession, ClientTimeout
 import asyncio
 import itertools
-from api_server import start_server
-
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -274,7 +273,7 @@ async def run_multiple_instances():
 
     # 2. Launch Load Balancer
     print("\n--- Starting Load Balancer ---")
-    app, lb = await create_load_balancer_app(backend_ports)
+    app, lb = await create_load_balancer_app()
     
     runner = web.AppRunner(app)
     await runner.setup()

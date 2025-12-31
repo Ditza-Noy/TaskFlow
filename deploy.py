@@ -65,7 +65,20 @@ class CloudFormationDeployer:
             print("Stack operation completed successfully!")
             return self.get_stack_outputs()
         except Exception as e:
-            print(f"Error deploying stack: {e}")
+            print(f"\n❌ Deployment failed: {e}")
+            try:
+                print("\n🔍 Fetching failure details from AWS...")
+                events = self.cloudformation.describe_stack_events(StackName=self.stack_name)
+                # print the most recent failed events first
+                for event in events['StackEvents']:
+                    if 'ResourceStatus' in event and 'FAILED' in event['ResourceStatus']:
+                        print(f"   • Resource: {event.get('LogicalResourceId')}")
+                        print(f"   • Reason:   {event.get('ResourceStatusReason')}")
+                        # usually the first failure is the root cause, so we can break or keep listing
+            except Exception as inner_e:
+                print(f"   Could not fetch stack events: {inner_e}")
+            # -----------------------------------------------
+            
             raise
 
     def get_stack_outputs(self) -> dict[str, str]:
