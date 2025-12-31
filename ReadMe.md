@@ -116,3 +116,68 @@ Background worker that processes tasks asynchronously.
 4. **Persistence**: Worker saves completed/failed tasks to `FileStorage`
 5. **Recovery**: System can restore tasks from backup files
 
+
+
+# TaskFlow - Distributed Task Processing API (Week 2)
+
+A distributed task processing system transformed from a local script into a RESTful API service. This version introduces Amazon SQS for reliable message queuing and FastAPI for HTTP access, allowing the system to scale beyond a single machine.
+
+## System Architecture
+
+The system now operates as a service with the following enhanced components:
+
+### 1. REST API Layer (`api_server.py`)
+Exposes TaskFlow functionality via HTTP endpoints using **FastAPI**.
+* **Framework**: FastAPI with Uvicorn for high-performance async execution.
+* **Endpoints**:
+    * `POST /tasks`: Enqueue new tasks.
+    * `GET /tasks/{task_id}`: Retrieve task status and payload.
+    * `GET /stats`: Monitor queue size and worker status.
+* **Middleware**: Custom logging middleware to track request duration and unique request IDs.
+
+### 2. Queue Abstraction & SQS (`sqs_queue.py`)
+Replaces the local heap with **Amazon SQS** while maintaining the original interface via the Adapter Pattern.
+* **Factory Pattern**: `queue_factory.py` selects between `TaskQueue` (Local) and `SQSTaskQueue` (AWS) based on environment variables.
+* **SQS Features Used**:
+    * **Long Polling**: Reduces empty responses and cost.
+    * **Visibility Timeout**: Ensures tasks are not lost if a worker crashes.
+    * **Message Attributes**: Stores priority metadata alongside the payload.
+
+### 3. Structured Logging (`logging_config.py`)
+Production-ready logging system replacing standard print statements.
+* **Format**: JSON logs for easy parsing by monitoring tools (e.g., CloudWatch, Datadog).
+* **Context**: Automatically includes `request_id`, `task_id`, and `duration_ms` in log entries.
+
+---
+
+### 2. Updated README for Week 3 (Scaling & Cloud Storage)
+
+This version adds Amazon S3, RDS, Load Balancing, and Infrastructure as Code.
+
+```markdown
+# TaskFlow - Scalable Cloud-Native Task System (Week 3)
+
+An enterprise-grade evolution of TaskFlow designed for horizontal scaling. This version migrates storage to Amazon S3 (Object Storage) and RDS (Relational Database), introduces a Load Balancer, and manages infrastructure using CloudFormation.
+
+## Architecture Evolution
+
+The system has moved from a monolithic script to a fully decoupled microservices-ready architecture:
+
+### 1. Cloud Storage Layer
+* **Object Storage (S3)**: Replaces local file storage for task payloads and artifacts.
+    * **Lifecycle Policies**: Automatically moves old data to Glacier after 90 days to reduce costs.
+    * **Design**: Uses `s3_storage.py` which implements the standard storage interface.
+* **Metadata Storage (RDS PostgreSQL)**: Replaces in-memory dictionaries for task tracking.
+    * **Connection Pooling**: Uses `psycopg2` pool to handle high concurrency efficiently.
+    * **Schema**: Relational model with indexing on `status` and `priority` for fast querying.
+
+### 2. Horizontal Scaling
+* **Load Balancer (`load_balancer.py`)**: A custom round-robin load balancer that sits in front of multiple API instances.
+    * **Health Checks**: Periodically pings `/health` on backend instances to remove unhealthy nodes.
+* **Stateless API**: The API servers are now stateless, allowing us to run multiple instances (e.g., ports 8001, 8002, 8003) connected to the same shared SQS and RDS backends.
+
+### 3. Infrastructure as Code (IaC)
+* **CloudFormation**: All AWS resources (S3 buckets, SQS queues, RDS instances, VPCs) are defined in `cloudformation/taskflow-infrastructure.yaml`.
+* **Deploy Script**: `deploy.py` automates the stack creation and updates `.env` with the new resource outputs.
+
+
