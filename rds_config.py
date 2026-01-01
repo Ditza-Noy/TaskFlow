@@ -3,6 +3,7 @@ import os
 from psycopg2 import pool
 import logging
 from dotenv import load_dotenv
+from typing import Any
 load_dotenv()
 logger = logging.getLogger(__name__)
 class RDSConfig:
@@ -32,7 +33,7 @@ class RDSConfig:
             logger.error(f"Error creating connection pool: {e}")
             raise
 
-    def get_connection(self):
+    def get_connection(self)-> Any:
         if self.connection_pool is None:
             # Either initialize it here or raise a helpful error
             self.create_connection_pool() 
@@ -42,7 +43,7 @@ class RDSConfig:
             
         return self.connection_pool.getconn()
 
-    def return_connection(self, conn):
+    def return_connection(self, conn: Any):
         """Return connection to pool."""
         if self.connection_pool:
             self.connection_pool.putconn(conn)
