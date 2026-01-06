@@ -1,6 +1,5 @@
 # event_bus.py
 from collections import deque
-import json
 import threading
 import uuid
 from datetime import datetime, timezone
